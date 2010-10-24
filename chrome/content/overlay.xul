@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE overlay [
+	<!ENTITY % globalDTD SYSTEM "chrome://global/locale/global.dtd"> %globalDTD;
+	<!ENTITY % formmetricsDTD SYSTEM "chrome://formmetrics/locale/formmetrics.dtd"> %formmetricsDTD;
+]>
+
+<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
+<?xml-stylesheet href="chrome://formmetrics/skin/formmetrics.css" type="text/css"?>
+<overlay id="formmetrics" xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+
+	<script src="overlay.js" />
+
+  <statusbar id="status-bar">
+    <statusbarpanel id="formmetrics-statusbar"
+      label="&formmetrics.statusbar.label;"
+      tooltiptext="&formmetrics.statusbar.tooltip;"
+      onclick="FormMetrics.submit();"
+    />
+  </statusbar>
+
+</overlay>
+

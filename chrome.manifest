@@ -1,0 +1,9 @@
+
+content  formmetrics           chrome/content/
+skin     formmetrics  default  chrome/skin/
+locale   formmetrics   en-US   chrome/locale/en-US/
+
+overlay chrome://browser/content/browser.xul    chrome://formmetrics/content/overlay.xul
+
+
+
