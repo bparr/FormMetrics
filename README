@@ -1,0 +1,4 @@
+This extension is meant to gather metrics about online forms. One of the goals of this extension is to protect the privacy of its users. However, nothing is guaranteed. Because of this, the extension is not meant to be downloaded by the general public.
+
+Sharath Babu, Jonathan Park, and I are working on a Firefox extension to improve the security and usability of online forms for 15-421: Web Commerce, Security and Privacy. This extension will act as a secondary extension used to gain metrics and help guide decisions of the main extension.
+
