@@ -56,8 +56,9 @@ let FormMetrics = {
 let URIMetrics = {
   get: function(aForm, aWindow, aActionURI, aBrowser) {
     return {
-      document: copy(aWindow.document.documentURIObject, URI_PROPERTIES),
-      action:   copy(aActionURI, URI_PROPERTIES)
+      form:   copy(aWindow.document.documentURIObject, URI_PROPERTIES),
+      top:    copy(aWindow.top.document.documentURIObject, URI_PROPERTIES),
+      action: copy(aActionURI, URI_PROPERTIES)
     };
   }
 }
