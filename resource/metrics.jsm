@@ -109,7 +109,7 @@ let PinnedMetrics = {
     let tabs = aBrowser.mTabContainer.childNodes;
 
     for (let i = 0; i < tabs.length; i++)
-      if (tabs[i].linkedBrowser.contentWindow == aWindow) 
+      if (tabs[i].linkedBrowser.contentWindow == topWindow)
         return tabs[i].pinned;
 
     return null;
