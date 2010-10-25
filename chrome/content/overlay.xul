@@ -9,7 +9,7 @@
 <?xml-stylesheet href="chrome://formmetrics/skin/formmetrics.css" type="text/css"?>
 <overlay id="formmetrics" xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
 
-	<script src="overlay.js" />
+	<script type="application/javascript" src="overlay.js" />
 
   <statusbar id="status-bar">
     <statusbarpanel id="formmetrics-statusbar"
