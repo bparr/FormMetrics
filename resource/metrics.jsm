@@ -1,6 +1,13 @@
 
 let EXPORTED_SYMBOLS = ["Metrics"];
 
+let Cc = Components.classes;
+let Ci = Components.interfaces;
+
+let LoginManager = Cc["@mozilla.org/login-manager;1"].
+                   getService(Ci.nsILoginManager);
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 // Properties to gather from the form itself
 const FORM_PROPERTIES = ["id", "name", "method", "target", "length",
                          "className", "title", "baseURI", "hidden",
@@ -13,8 +20,100 @@ const ELEMENT_PROPERTIES = ["tagName", "type", "id", "name", "className",
 // Properties to gather from nsIURI
 const URI_PROPERTIES = ["spec", "scheme", "host", "port", "path"];
 
+// Copy specified object properties to a new object
+function copy(aObject, aProperties) {
+  let copy = {};
+  aProperties.forEach(function(aProperty) {
+    copy[aProperty] = aObject[aProperty];
+  });
+
+  return copy;
+}
+
+// Metrics about the time the form was submitted
+let TimeMetrics = {
+  get: function(aForm, aWindow, aActionURI) {
+    return Date.now();
+  }
+}
+
+// Metrics about the form submitted
+let FormMetrics = {
+  get: function(aForm, aWindow, aActionURI) {
+    let metrics = copy(aForm, FORM_PROPERTIES);
+
+    let elements = [];
+    for (let i = 0, len = aForm.elements.length; i < len; i++) {
+      elements.push(copy(aForm.elements.item(i), ELEMENT_PROPERTIES));
+    }
+    metrics.elements = elements;
+
+    return metrics;
+  }
+}
+
+// Metrics about the URIs
+let URIMetrics = {
+  get: function(aForm, aWindow, aActionURI) {
+    return {
+      document: copy(aWindow.document.documentURIObject, URI_PROPERTIES),
+      action:   copy(aActionURI, URI_PROPERTIES)
+    };
+  }
+}
+
+// Metrics about saved passwords
+let PasswordMetrics = {
+  get: function(aForm, aWindow, aActionURI) {
+    let metrics = {};
+
+    let documentURIObject = aWindow.document.documentURIObject;
+    let documentHostname = this._getFormattedHostname(documentURIObject);
+    let actionHostname = this._getFormattedHostname(aActionURI);
+
+    metrics.documentCount = this._count(documentHostname);
+
+    // Avoid unnecessary call to _count if hostnames are the same
+    if (documentHostname == actionHostname)
+      metrics.actionCount = metrics.documentCount;
+    else
+      metrics.actionCount = this._count(actionHostname);
+
+    return metrics;
+  },
+
+  _count: function(aHostname) {
+    return LoginManager.countLogins(aHostname, "", null);
+  },
+
+  // Based on the _getFormattedHostname function in mozilla-central's
+  // toolkit/components/passwordmgr/src/nsLoginManagerPrompter.js
+  _getFormattedHostname: function(aURI) {
+    let hostname = aURI.scheme + "://" + aURI.host;
+
+    // Only include port if it's not the scheme's default
+    let port = aURI.port;
+    if (port != -1) {
+      let handler = Services.io.getProtocolHandler(aURI.scheme);
+      if (port != handler.defaultPort)
+        hostname += ":" + port;
+    }
+
+    return hostname;
+  }
+}
+
 let Metrics = {
   _metrics: [],
+
+  // Getters for different type of metrics
+  // TODO implement getters for history, pinned tab, window data
+  _getters: {
+    time: TimeMetrics,
+    form: FormMetrics,
+    uris: URIMetrics,
+    password: PasswordMetrics
+  },
 
   stringify: function() {
     return JSON.stringify(this._metrics);
@@ -22,39 +121,10 @@ let Metrics = {
 
   gather: function(aForm, aWindow, aActionURI) {
     let data = {};
-
-    // Gather data about form
-    data.form = this._copy(aForm, FORM_PROPERTIES);
-
-    let elements = [];
-    for (let i = 0, len = aForm.elements.length; i < len; i++) {
-      elements.push(this._copy(aForm.elements.item(i), ELEMENT_PROPERTIES));
-    }
-    data.form.elements = elements;
-
-    // Gather data about the window
-    // TODO gather other properties from aWindow?
-    let documentURIObject = aWindow.document.documentURIObject;
-    data.documentURI = this._copy(documentURIObject, URI_PROPERTIES);
-
-    // Gather data about the action URI
-    data.actionURI = this._copy(aActionURI, URI_PROPERTIES);
-
-    // TODO history, saved password, pinned tab
-
-    // Gather other data
-    data.time = Date.now();
+    for (let name in this._getters)
+      data[name] = this._getters[name].get(aForm, aWindow, aActionURI);
 
     this._metrics.push(data);
-  },
-
-  _copy: function(aObject, aProperties) {
-    let copy = {};
-    aProperties.forEach(function(aProperty) {
-      copy[aProperty] = aObject[aProperty];
-    });
-
-    return copy;
   }
 };
 
