@@ -28,7 +28,7 @@ let FormMetrics = {
 
     notify: function(aForm, aWindow, aActionURI) {
       try {
-        FormMetrics.Metrics.gather(aForm, aWindow, aActionURI);
+        FormMetrics.Metrics.gather(aForm, aWindow, aActionURI, gBrowser);
       }
       catch (e) {}
 

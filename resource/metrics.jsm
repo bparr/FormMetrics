@@ -32,14 +32,14 @@ function copy(aObject, aProperties) {
 
 // Metrics about the time the form was submitted
 let TimeMetrics = {
-  get: function(aForm, aWindow, aActionURI) {
+  get: function(aForm, aWindow, aActionURI, aBrowser) {
     return Date.now();
   }
 }
 
 // Metrics about the form submitted
 let FormMetrics = {
-  get: function(aForm, aWindow, aActionURI) {
+  get: function(aForm, aWindow, aActionURI, aBrowser) {
     let metrics = copy(aForm, FORM_PROPERTIES);
 
     let elements = [];
@@ -54,7 +54,7 @@ let FormMetrics = {
 
 // Metrics about the URIs
 let URIMetrics = {
-  get: function(aForm, aWindow, aActionURI) {
+  get: function(aForm, aWindow, aActionURI, aBrowser) {
     return {
       document: copy(aWindow.document.documentURIObject, URI_PROPERTIES),
       action:   copy(aActionURI, URI_PROPERTIES)
@@ -64,7 +64,7 @@ let URIMetrics = {
 
 // Metrics about saved passwords
 let PasswordMetrics = {
-  get: function(aForm, aWindow, aActionURI) {
+  get: function(aForm, aWindow, aActionURI, aBrowser) {
     let metrics = {};
 
     let documentURIObject = aWindow.document.documentURIObject;
@@ -103,26 +103,40 @@ let PasswordMetrics = {
   }
 }
 
+let PinnedMetrics = {
+  get: function(aForm, aWindow, aActionURI, aBrowser) {
+    let topWindow = aWindow.top;
+    let tabs = aBrowser.mTabContainer.childNodes;
+
+    for (let i = 0; i < tabs.length; i++)
+      if (tabs[i].linkedBrowser.contentWindow == aWindow) 
+        return tabs[i].pinned;
+
+    return null;
+  }
+}
+
 let Metrics = {
   _metrics: [],
 
   // Getters for different type of metrics
-  // TODO implement getters for history, pinned tab, window data
+  // TODO implement getters for history, window data
   _getters: {
     time: TimeMetrics,
     form: FormMetrics,
     uris: URIMetrics,
-    password: PasswordMetrics
+    password: PasswordMetrics,
+    pinned: PinnedMetrics
   },
 
   stringify: function() {
     return JSON.stringify(this._metrics);
   },
 
-  gather: function(aForm, aWindow, aActionURI) {
+  gather: function(aForm, aWindow, aActionURI, aBrowser) {
     let data = {};
-    for (let name in this._getters)
-      data[name] = this._getters[name].get(aForm, aWindow, aActionURI);
+    for (let i in this._getters)
+      data[i] = this._getters[i].get(aForm, aWindow, aActionURI, aBrowser);
 
     this._metrics.push(data);
   }
