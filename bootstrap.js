@@ -8,6 +8,8 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
 let LoginManager = Cc["@mozilla.org/login-manager;1"].
                    getService(Ci.nsILoginManager);
+let PrivateBrowsing = Cc["@mozilla.org/privatebrowsing;1"].
+                      getService(Ci.nsIPrivateBrowsingService);
 
 // The url to send the form data to
 const SUBMIT_URL = "https://bparr.homelinux.com/formmetrics.php";
@@ -25,7 +27,7 @@ const ELEMENT_PROPERTIES = ["tagName", "type", "id", "name", "className",
 const URI_PROPERTIES = ["spec", "scheme", "host", "port", "path"];
 
 // Getters for different type of metrics
-// TODO implement getters for history, window data, private browsing mode
+// TODO implement getters for history, window data
 let GETTERS = {};
 
 
@@ -167,6 +169,13 @@ GETTERS.pinned = {
         return tabs[i].pinned;
 
     return null;
+  }
+}
+
+// Metrics about wheter the user is in Private Browsing mode
+GETTERS.privateBrowsing = {
+  get: function(aForm, aWindow, aActionURI) {
+    return PrivateBrowsing.privateBrowsingEnabled;
   }
 }
 
