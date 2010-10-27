@@ -19,10 +19,6 @@ let FormMetrics = {
     self.Services.obs.removeObserver(self._observer, "earlyformsubmit", false);
   },
 
-  submit: function() {
-    alert(this.Metrics.stringify());
-  },
-
   _observer: {
     QueryInterface: XPCOMUtils.generateQI([Ci.nsIFormSubmitObserver]),
 
@@ -30,7 +26,9 @@ let FormMetrics = {
       try {
         FormMetrics.Metrics.gather(aForm, aWindow, aActionURI, gBrowser);
       }
-      catch (e) {}
+      catch (e) {
+        Cu.reportError(e);
+      }
 
       return true;
     }

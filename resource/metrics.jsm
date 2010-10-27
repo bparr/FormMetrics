@@ -8,6 +8,9 @@ let LoginManager = Cc["@mozilla.org/login-manager;1"].
                    getService(Ci.nsILoginManager);
 Components.utils.import("resource://gre/modules/Services.jsm");
 
+const PREF_ENABLED    = "extensions.formmetrics.enabled";
+const PREF_SUBMIT_URL = "extensions.formmetrics.submitURL";
+
 // Properties to gather from the form itself
 const FORM_PROPERTIES = ["id", "name", "method", "target", "length",
                          "className", "title", "baseURI", "hidden",
@@ -118,8 +121,6 @@ let PinnedMetrics = {
 }
 
 let Metrics = {
-  _metrics: [],
-
   // Getters for different type of metrics
   // TODO implement getters for history, window data
   _getters: {
@@ -130,16 +131,34 @@ let Metrics = {
     pinned: PinnedMetrics
   },
 
-  stringify: function() {
-    return JSON.stringify(this._metrics);
+  get enabled() {
+    return Services.prefs.getBoolPref(PREF_ENABLED);
   },
 
   gather: function(aForm, aWindow, aActionURI, aBrowser) {
+    if (!this.enabled)
+      return;
+
     let data = {};
     for (let i in this._getters)
       data[i] = this._getters[i].get(aForm, aWindow, aActionURI, aBrowser);
 
-    this._metrics.push(data);
+    // Submit data
+    let submitURL = Services.prefs.getCharPref(PREF_SUBMIT_URL);
+    let formData = Cc["@mozilla.org/files/formdata;1"].
+                   createInstance(Ci.nsIDOMFormData);
+    formData.append("json", JSON.stringify(data));
+
+    var req = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"].
+              createInstance(Ci.nsIXMLHttpRequest);
+    req.open("POST", submitURL, true);
+    req.channel.loadFlags |= Ci.nsIRequest.LOAD_BYPASS_CACHE;
+    req.onreadystatechange = function(aEvent) {
+      if (req.readyState == 4 && req.status != 200)
+        aWindow.alert("FormMetrics Submission Failed (" + req.status + ")");
+    };
+
+    req.send(formData);
   }
 };
 

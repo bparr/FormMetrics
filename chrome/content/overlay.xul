@@ -11,13 +11,5 @@
 
 	<script type="application/javascript" src="overlay.js" />
 
-  <statusbar id="status-bar">
-    <statusbarpanel id="formmetrics-statusbar"
-      label="&formmetrics.statusbar.label;"
-      tooltiptext="&formmetrics.statusbar.tooltip;"
-      onclick="FormMetrics.submit();"
-    />
-  </statusbar>
-
 </overlay>
 
