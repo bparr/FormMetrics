@@ -6,13 +6,21 @@ let Cu = Components.utils;
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
+let HistoryService = Cc["@mozilla.org/browser/nav-history-service;1"].
+                     getService(Ci.nsINavHistoryService);
 let LoginManager = Cc["@mozilla.org/login-manager;1"].
                    getService(Ci.nsILoginManager);
 let PrivateBrowsing = Cc["@mozilla.org/privatebrowsing;1"].
                       getService(Ci.nsIPrivateBrowsingService);
 
+// The number of milliseconds in a single day
+const MILLISECONDS_IN_DAY = 86400000;
+
 // The url to send the form data to
 const SUBMIT_URL = "https://bparr.homelinux.com/formmetrics.php";
+
+// The time to wait before submitting the form data
+const SUBMIT_DELAY = 1000;
 
 // Properties to gather from the form itself
 const FORM_PROPERTIES = ["id", "name", "method", "target", "length",
@@ -27,7 +35,6 @@ const ELEMENT_PROPERTIES = ["tagName", "type", "id", "name", "className",
 const URI_PROPERTIES = ["spec", "scheme", "host", "port", "path"];
 
 // Getters for different type of metrics
-// TODO implement getters for history, window data
 let GETTERS = {};
 
 
@@ -45,6 +52,7 @@ function shutdown(aData, aReason) {
   Services.obs.removeObserver(observer, "earlyformsubmit", false);
 }
 
+// Form submission observer
 let observer = {
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIFormSubmitObserver]),
 
@@ -56,10 +64,26 @@ let observer = {
       for (let i in GETTERS)
         data[i] = GETTERS[i].get(aForm, aWindow, aActionURI);
 
-      // Submit data
+      submitMetrics(JSON.stringify(data));
+    }
+    catch (e) {
+      Cu.reportError(e);
+    }
+
+    return true;
+  }
+}
+
+// Submit the metrics, with a delay
+function submitMetrics(json) {
+  let timer = Cc["@mozilla.org/timer;1"].
+              createInstance(Ci.nsITimer);
+
+  timer.initWithCallback({
+    notify: function(aTimer) {
       let formData = Cc["@mozilla.org/files/formdata;1"].
                      createInstance(Ci.nsIDOMFormData);
-      formData.append("json", JSON.stringify(data));
+      formData.append("json", json);
 
       let req = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"].
                 createInstance(Ci.nsIXMLHttpRequest);
@@ -72,12 +96,7 @@ let observer = {
 
       req.send(formData);
     }
-    catch (e) {
-      Cu.reportError(e);
-    }
-
-  return true;
-  }
+  }, SUBMIT_DELAY, timer.TYPE_ONE_SHOT);
 }
 
 
@@ -114,6 +133,68 @@ GETTERS.uri = {
       top:    copy(aWindow.top.document.documentURIObject, URI_PROPERTIES),
       action: copy(aActionURI, URI_PROPERTIES)
     };
+  }
+}
+
+// Metrics about the user's history of the form's host
+GETTERS.history = {
+  get: function(aForm, aWindow, aActionURI) {
+    let options = HistoryService.getNewQueryOptions();
+    options.queryType = options.QUERY_TYPE_HISTORY;
+    options.resultType = options.RESULTS_AS_VISIT;
+
+    let query = HistoryService.getNewQuery();
+    query.domainIsHost = true;
+    query.domain = aWindow.document.documentURIObject.host;
+
+    let result = HistoryService.executeQuery(query, options);
+    let root = result.root;
+    root.containerOpen = true;
+
+    // Group the results by day
+    let dayKeys = [];
+    let dayMap = {};
+    let now = Date.now();
+    for (let i = 0; i < root.childCount; i++) {
+      let node = root.getChild(i);
+      let time = node.time / 1000;
+      let daysAgo = parseInt((now - time) / MILLISECONDS_IN_DAY);
+
+      if (!(daysAgo in dayMap)) {
+        dayKeys.push(daysAgo);
+        dayMap[daysAgo] = 0;
+      }
+      dayMap[daysAgo]++;
+    }
+
+    // Return array where the ith element is the number of times the site
+    // was visited i days ago
+    dayKeys.sort(function(a, b) a - b);
+    let max = dayKeys[dayKeys.length - 1];
+
+    let metrics = [];
+    for (let i = 0; i <= max; i++)
+      metrics.push((i in dayMap) ? dayMap[i] : 0);
+
+    return metrics;
+  }
+}
+
+// Metrics about the user's bookmarks of the form's host
+GETTERS.bookmarks = {
+  get: function(aForm, aWindow, aActionURI) {
+    let options = HistoryService.getNewQueryOptions();
+    options.queryType = options.QUERY_TYPE_BOOKMARKS;
+    options.resultType = options.RESULTS_AS_URI;
+
+    let query = HistoryService.getNewQuery();
+    query.domainIsHost = true;
+    query.domain = aWindow.document.documentURIObject.host;
+
+    let result = HistoryService.executeQuery(query, options);
+    let root = result.root;
+    root.containerOpen = true;
+    return root.childCount;
   }
 }
 
