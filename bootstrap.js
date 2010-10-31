@@ -13,6 +13,9 @@ let LoginManager = Cc["@mozilla.org/login-manager;1"].
 let PrivateBrowsing = Cc["@mozilla.org/privatebrowsing;1"].
                       getService(Ci.nsIPrivateBrowsingService);
 
+// Preference name for the unique id of the client
+const PREF_ID = "extensions.formmetrics.id";
+
 // The number of milliseconds in a single day
 const MILLISECONDS_IN_DAY = 86400000;
 
@@ -103,6 +106,44 @@ function submitMetrics(json) {
 /*
  * Metrics getters
  */
+// The unique id of the client
+GETTERS.clientID = {
+  _id: null,
+
+  get: function(aForm, aWindow, aActionURI) {
+    if (this._id)
+      return this._id;
+    if (this._id === false)
+      return null;
+
+    let id = false;
+    try {
+      id = Services.prefs.getCharPref(PREF_ID);
+    }
+    catch (e) {
+      id = this._initialize();
+    }
+
+    this._id = id ? id : false;
+    return this._id;
+  },
+
+  _initialize: function() {
+    try {
+      Cu.import("resource://services-crypto/WeaveCrypto.js");
+      let cryptoSvc = new WeaveCrypto();
+      let value = cryptoSvc.generateRandomBytes(32);
+      Services.prefs.setCharPref(PREF_ID, value);
+      return value;
+    }
+    catch (e) {
+      Cu.reportError(e);
+    }
+
+    return null;
+  }
+}
+
 // Metrics about the time the form was submitted
 GETTERS.time = {
   get: function(aForm, aWindow, aActionURI) {
