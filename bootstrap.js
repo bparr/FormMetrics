@@ -94,7 +94,7 @@ function submitMetrics(json) {
       req.channel.loadFlags |= Ci.nsIRequest.LOAD_BYPASS_CACHE;
       req.onreadystatechange = function(aEvent) {
         if (req.readyState == 4 && req.status != 200)
-          aWindow.alert("FormMetrics submission failed (" + req.status + ")");
+          Cu.reportError("FormMetrics submission failed (" + req.status + ")");
       };
 
       req.send(formData);
