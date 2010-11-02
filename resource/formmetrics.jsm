@@ -51,10 +51,40 @@ const URI_PROPERTIES = ["spec", "scheme", "host", "port", "path"];
 // Getters for different type of metrics
 let GETTERS = {};
 
+// The unique id of the client
+let CLIENT_ID = null;
+
 let initialized = false;
 let FormMetrics = {
   init: function() {
     if (initialized)
+      return;
+    initialized = true;
+
+    // Attempt to retrieve previously stored id
+    try {
+      CLIENT_ID = PreferenceService.getCharPref(PREF_ID);
+    }
+    catch (e) {
+      Cu.reportError(e);
+    }
+
+    if (!CLIENT_ID) {
+      try {
+        // Generate and store new user id in preference
+        let bytes = [];
+        for (let i = 0; i < ID_BYTES; i++)
+          bytes.push(String.fromCharCode(Math.floor(Math.random() * 256)));
+        let value = btoa(bytes.join(''));
+        PreferenceService.setCharPref(PREF_ID, value);
+        CLIENT_ID = value;
+      }
+      catch (e) {
+        Cu.reportError(e);
+      }
+    }
+
+    if (!CLIENT_ID)
       return;
 
     ObserverService.addObserver(observer, "earlyformsubmit", false);
@@ -68,6 +98,7 @@ let observer = {
   notify: function(aForm, aWindow, aActionURI) {
     // Ensure function always returns true so the extension doesn't
     // affect form submition at all
+aWindow.dump(CLIENT_ID + "\n");
     try {
       let data = {};
       for (let i in GETTERS)
@@ -114,40 +145,8 @@ function submitMetrics(json) {
  */
 // The unique id of the client
 GETTERS.clientID = {
-  _id: null,
-
   get: function(aForm, aWindow, aActionURI) {
-    if (this._id)
-      return this._id;
-    if (this._id === false)
-      return null;
-
-    let id = false;
-    try {
-      id = PreferenceService.getCharPref(PREF_ID);
-    }
-    catch (e) {
-      id = this._initialize();
-    }
-
-    this._id = id ? id : false;
-    return this._id;
-  },
-
-  _initialize: function() {
-    try {
-      let bytes = [];
-      for (let i = 0; i < ID_BYTES; i++)
-        bytes.push(String.fromCharCode(Math.floor(Math.random() * 256)));
-      let value = btoa(bytes.join(''));
-      PreferenceService.setCharPref(PREF_ID, value);
-      return value;
-    }
-    catch (e) {
-      Cu.reportError(e);
-    }
-
-    return null;
+    return CLIENT_ID;
   }
 }
 
