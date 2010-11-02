@@ -1,0 +1,5 @@
+
+content   formmetrics  content/
+resource  formmetrics  resource/
+overlay   chrome://browser/content/browser.xul  chrome://formmetrics/content/overlay.xul
+

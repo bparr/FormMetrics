@@ -1,11 +1,19 @@
 
+let EXPORTED_SYMBOLS = ["FormMetrics"];
+
 let Cc = Components.classes;
 let Ci = Components.interfaces;
 let Cu = Components.utils;
 
-Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
+let ObserverService = Cc["@mozilla.org/observer-service;1"].
+                      getService(Ci.nsIObserverService);
+let IOService = Cc["@mozilla.org/network/io-service;1"].
+                getService(Ci.nsIIOService2);
+let PreferenceService = Cc["@mozilla.org/preferences-service;1"].
+                        getService(Ci.nsIPrefService).
+                        QueryInterface(Ci.nsIPrefBranch2);
 let HistoryService = Cc["@mozilla.org/browser/nav-history-service;1"].
                      getService(Ci.nsINavHistoryService);
 let LoginManager = Cc["@mozilla.org/login-manager;1"].
@@ -15,6 +23,9 @@ let PrivateBrowsing = Cc["@mozilla.org/privatebrowsing;1"].
 
 // Preference name for the unique id of the client
 const PREF_ID = "extensions.formmetrics.id";
+
+// Number of bytes used in client id
+const ID_BYTES = 32;
 
 // The number of milliseconds in a single day
 const MILLISECONDS_IN_DAY = 86400000;
@@ -40,19 +51,14 @@ const URI_PROPERTIES = ["spec", "scheme", "host", "port", "path"];
 // Getters for different type of metrics
 let GETTERS = {};
 
+let initialized = false;
+let FormMetrics = {
+  init: function() {
+    if (initialized)
+      return;
 
-/*
- * Bootstrap functions
- */
-function install(aData, aReason) {}
-function uninstall(aData, aReason) {}
-
-function startup(aData, aReason) {
-  Services.obs.addObserver(observer, "earlyformsubmit", false);
-}
-
-function shutdown(aData, aReason) {
-  Services.obs.removeObserver(observer, "earlyformsubmit", false);
+    ObserverService.addObserver(observer, "earlyformsubmit", false);
+  }
 }
 
 // Form submission observer
@@ -118,7 +124,7 @@ GETTERS.clientID = {
 
     let id = false;
     try {
-      id = Services.prefs.getCharPref(PREF_ID);
+      id = PreferenceService.getCharPref(PREF_ID);
     }
     catch (e) {
       id = this._initialize();
@@ -130,10 +136,11 @@ GETTERS.clientID = {
 
   _initialize: function() {
     try {
-      Cu.import("resource://services-crypto/WeaveCrypto.js");
-      let cryptoSvc = new WeaveCrypto();
-      let value = cryptoSvc.generateRandomBytes(32);
-      Services.prefs.setCharPref(PREF_ID, value);
+      let bytes = [];
+      for (let i = 0; i < ID_BYTES; i++)
+        bytes.push(String.fromCharCode(Math.floor(Math.random() * 256)));
+      let value = btoa(bytes.join(''));
+      PreferenceService.setCharPref(PREF_ID, value);
       return value;
     }
     catch (e) {
@@ -271,26 +278,12 @@ GETTERS.password = {
     // Only include port if it's not the scheme's default
     let port = aURI.port;
     if (port != -1) {
-      let handler = Services.io.getProtocolHandler(aURI.scheme);
+      let handler = IOService.getProtocolHandler(aURI.scheme);
       if (port != handler.defaultPort)
         hostname += ":" + port;
     }
 
     return hostname;
-  }
-}
-
-// Metrics about whether the form is from a pinned tab
-GETTERS.pinned = {
-  get: function(aForm, aWindow, aActionURI) {
-    let topWindow = aWindow.top;
-    let tabs = getMainWindow(aWindow).gBrowser.mTabContainer.childNodes;
-
-    for (let i = 0; i < tabs.length; i++)
-      if (tabs[i].linkedBrowser.contentWindow == topWindow)
-        return tabs[i].pinned;
-
-    return null;
   }
 }
 
@@ -313,15 +306,5 @@ function copy(aObject, aProperties) {
   });
 
   return copy;
-}
-
-// Get main window from form window
-function getMainWindow(aWindow) {
-  return aWindow.QueryInterface(Ci.nsIInterfaceRequestor).
-                 getInterface(Ci.nsIWebNavigation).
-                 QueryInterface(Ci.nsIDocShellTreeItem).
-                 rootTreeItem.
-                 QueryInterface(Ci.nsIInterfaceRequestor).
-                 getInterface(Ci.nsIDOMWindow);
 }
 
