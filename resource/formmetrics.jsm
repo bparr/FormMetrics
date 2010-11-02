@@ -45,9 +45,6 @@ const FORM_PROPERTIES = ["id", "name", "method", "target", "length",
 const ELEMENT_PROPERTIES = ["tagName", "type", "id", "name", "className",
                             "hidden", "disabled"];
 
-// Properties to gather from nsIURI
-const URI_PROPERTIES = ["spec", "scheme", "host", "port", "path"];
-
 // Getters for different type of metrics
 let GETTERS = {};
 
@@ -98,7 +95,6 @@ let observer = {
   notify: function(aForm, aWindow, aActionURI) {
     // Ensure function always returns true so the extension doesn't
     // affect form submition at all
-aWindow.dump(CLIENT_ID + "\n");
     try {
       let data = {};
       for (let i in GETTERS)
@@ -176,10 +172,19 @@ GETTERS.form = {
 GETTERS.uri = {
   get: function(aForm, aWindow, aActionURI) {
     return {
-      form:   copy(aWindow.document.documentURIObject, URI_PROPERTIES),
-      top:    copy(aWindow.top.document.documentURIObject, URI_PROPERTIES),
-      action: copy(aActionURI, URI_PROPERTIES)
+      form:   this._copy(aWindow.document.documentURIObject),
+      top:    this._copy(aWindow.top.document.documentURIObject),
+      action: this._copy(aActionURI)
     };
+  },
+
+  _copy: function(aURI) {
+    let copy = {};
+    copy.spec = hash(aURI.spec, "SHA1");
+    copy.scheme = aURI.scheme;
+    copy.host = hash(aURI.host, "MD5");
+    copy.port = aURI.port;
+    return copy;
   }
 }
 
@@ -305,5 +310,21 @@ function copy(aObject, aProperties) {
   });
 
   return copy;
+}
+
+// Hash a string using the user's id as a salt
+function hash(aString, aAlgorithm) {
+  // Get byte array from string
+  let converter = Cc["@mozilla.org/intl/scriptableunicodeconverter"].
+                  createInstance(Ci.nsIScriptableUnicodeConverter);
+  converter.charset = "UTF-8";
+  let result = {};
+  let data = converter.convertToByteArray(CLIENT_ID + aString, {});
+
+  let ch = Cc["@mozilla.org/security/hash;1"].
+           createInstance(Ci.nsICryptoHash);
+  ch.initWithString(aAlgorithm);
+  ch.update(data, data.length);
+  return ch.finish(true);
 }
 
