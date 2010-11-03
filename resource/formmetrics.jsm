@@ -48,6 +48,10 @@ const ELEMENT_PROPERTIES = ["tagName", "type", "id", "name", "className",
 // Getters for different type of metrics
 let GETTERS = {};
 
+// Getters called after the form is submitted, and therefore do not have
+// access to the window or form object
+let DELAYED_GETTERS = {};
+
 // The unique id of the client
 let CLIENT_ID = null;
 
@@ -96,11 +100,23 @@ let observer = {
     // Ensure function always returns true so the extension doesn't
     // affect form submition at all
     try {
-      let data = {};
-      for (let i in GETTERS)
-        data[i] = GETTERS[i].get(aForm, aWindow, aActionURI);
+      let data = {
+        form:      aForm,
+        window:    aWindow,
+        formURI:   aWindow.document.documentURIObject.clone(),
+        topURI:    aWindow.top.document.documentURIObject.clone(),
+        actionURI: aActionURI.clone()
+      };
 
-      submitMetrics(JSON.stringify(data));
+      let metrics = {};
+      for (let name in GETTERS)
+        metrics[name] = GETTERS[name].get(data);
+
+      // Remove properties from data that are not valid after form is submitted
+      data.form = null;
+      data.window = null;
+
+      submitMetrics(metrics, data);
     }
     catch (e) {
       Cu.reportError(e);
@@ -111,15 +127,18 @@ let observer = {
 }
 
 // Submit the metrics, with a delay
-function submitMetrics(json) {
+function submitMetrics(aMetrics, aData) {
   let timer = Cc["@mozilla.org/timer;1"].
               createInstance(Ci.nsITimer);
 
   timer.initWithCallback({
     notify: function(aTimer) {
+      for (let name in DELAYED_GETTERS)
+        aMetrics[name] = DELAYED_GETTERS[name].get(aData);
+
       let formData = Cc["@mozilla.org/files/formdata;1"].
                      createInstance(Ci.nsIDOMFormData);
-      formData.append("json", json);
+      formData.append("json", JSON.stringify(aMetrics));
 
       let req = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"].
                 createInstance(Ci.nsIXMLHttpRequest);
@@ -141,26 +160,27 @@ function submitMetrics(json) {
  */
 // The unique id of the client
 GETTERS.clientID = {
-  get: function(aForm, aWindow, aActionURI) {
+  get: function(aData) {
     return CLIENT_ID;
   }
 }
 
 // Metrics about the time the form was submitted
 GETTERS.time = {
-  get: function(aForm, aWindow, aActionURI) {
+  get: function(aData) {
     return Date.now();
   }
 }
 
 // Metrics about the form submitted
 GETTERS.form = {
-  get: function(aForm, aWindow, aActionURI) {
-    let metrics = copy(aForm, FORM_PROPERTIES);
+  get: function(aData) {
+    let form = aData.form;
+    let metrics = copy(form, FORM_PROPERTIES);
 
     let elements = [];
-    for (let i = 0, len = aForm.elements.length; i < len; i++) {
-      elements.push(copy(aForm.elements.item(i), ELEMENT_PROPERTIES));
+    for (let i = 0, len = form.elements.length; i < len; i++) {
+      elements.push(copy(form.elements.item(i), ELEMENT_PROPERTIES));
     }
     metrics.elements = elements;
 
@@ -169,12 +189,12 @@ GETTERS.form = {
 }
 
 // Metrics about the URIs
-GETTERS.uri = {
-  get: function(aForm, aWindow, aActionURI) {
+DELAYED_GETTERS.uri = {
+  get: function(aData) {
     return {
-      form:   this._copy(aWindow.document.documentURIObject),
-      top:    this._copy(aWindow.top.document.documentURIObject),
-      action: this._copy(aActionURI)
+      form:   this._copy(aData.formURI),
+      top:    this._copy(aData.topURI),
+      action: this._copy(aData.actionURI)
     };
   },
 
@@ -189,15 +209,15 @@ GETTERS.uri = {
 }
 
 // Metrics about the user's history of the form's host
-GETTERS.history = {
-  get: function(aForm, aWindow, aActionURI) {
+DELAYED_GETTERS.history = {
+  get: function(aData) {
     let options = HistoryService.getNewQueryOptions();
     options.queryType = options.QUERY_TYPE_HISTORY;
     options.resultType = options.RESULTS_AS_VISIT;
 
     let query = HistoryService.getNewQuery();
     query.domainIsHost = true;
-    query.domain = aWindow.document.documentURIObject.host;
+    query.domain = aData.formURI.host;
 
     let result = HistoryService.executeQuery(query, options);
     let root = result.root;
@@ -233,15 +253,15 @@ GETTERS.history = {
 }
 
 // Metrics about the user's bookmarks of the form's host
-GETTERS.bookmarks = {
-  get: function(aForm, aWindow, aActionURI) {
+DELAYED_GETTERS.bookmarks = {
+  get: function(aData) {
     let options = HistoryService.getNewQueryOptions();
     options.queryType = options.QUERY_TYPE_BOOKMARKS;
     options.resultType = options.RESULTS_AS_URI;
 
     let query = HistoryService.getNewQuery();
     query.domainIsHost = true;
-    query.domain = aWindow.document.documentURIObject.host;
+    query.domain = aData.formURI.host;
 
     let result = HistoryService.executeQuery(query, options);
     let root = result.root;
@@ -251,13 +271,12 @@ GETTERS.bookmarks = {
 }
 
 // Metrics about saved passwords
-GETTERS.password = {
-  get: function(aForm, aWindow, aActionURI) {
+DELAYED_GETTERS.password = {
+  get: function(aData) {
     let metrics = {};
 
-    let documentURIObject = aWindow.document.documentURIObject;
-    let documentHostname = this._getFormattedHostname(documentURIObject);
-    let actionHostname = this._getFormattedHostname(aActionURI);
+    let documentHostname = this._getFormattedHostname(aData.formURI);
+    let actionHostname = this._getFormattedHostname(aData.actionURI);
 
     metrics.documentCount = this._count(documentHostname);
 
@@ -292,8 +311,8 @@ GETTERS.password = {
 }
 
 // Metrics about wheter the user is in Private Browsing mode
-GETTERS.privateBrowsing = {
-  get: function(aForm, aWindow, aActionURI) {
+DELAYED_GETTERS.privateBrowsing = {
+  get: function(aData) {
     return PrivateBrowsing.privateBrowsingEnabled;
   }
 }
