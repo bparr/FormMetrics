@@ -27,12 +27,10 @@ const SUBMIT_URL = "https://bparr.homelinux.com/formmetrics.php";
 const SUBMIT_DELAY = 2000;
 
 // Properties to gather from the form itself
-const FORM_PROPERTIES = ["id", "name", "method", "target", "length",
-                         "className", "title", "hidden", "autocomplete"];
+const FORM_PROPERTIES = ["id", "name", "method", "length", "autocomplete"];
 
 // Properties to gather from form elements
-const ELEMENT_PROPERTIES = ["tagName", "type", "id", "name", "className",
-                            "hidden", "disabled"];
+const ELEMENT_PROPERTIES = ["tagName", "type", "id", "name", "disabled"];
 
 // The current schema vesion used
 const SCHEMA_VERSION = 1;
