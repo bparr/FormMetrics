@@ -1,6 +1,6 @@
 
 (function() {
-  Components.utils.import("resource://formmetrics/formmetrics.jsm");
+  Components.utils.import("resource://formmetrics/FormMetrics.jsm");
   FormMetrics.init();
 })();
 

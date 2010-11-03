@@ -6,24 +6,7 @@ let Ci = Components.interfaces;
 let Cu = Components.utils;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
-
-let ObserverService = Cc["@mozilla.org/observer-service;1"].
-                      getService(Ci.nsIObserverService);
-let IOService = Cc["@mozilla.org/network/io-service;1"].
-                getService(Ci.nsIIOService2);
-let PreferenceService = Cc["@mozilla.org/preferences-service;1"].
-                        getService(Ci.nsIPrefService).
-                        QueryInterface(Ci.nsIPrefBranch2);
-let HistoryService = Cc["@mozilla.org/browser/nav-history-service;1"].
-                     getService(Ci.nsINavHistoryService);
-let LoginManager = Cc["@mozilla.org/login-manager;1"].
-                   getService(Ci.nsILoginManager);
-let PrivateBrowsing = Cc["@mozilla.org/privatebrowsing;1"].
-                      getService(Ci.nsIPrivateBrowsingService);
-let ExtensionManager = Cc["@mozilla.org/extensions/manager;1"].
-                       getService(Ci.nsIExtensionManager);
-let ConsoleService = Cc["@mozilla.org/consoleservice;1"].
-                     getService(Ci.nsIConsoleService);
+Cu.import("resource://formmetrics/Services.jsm");
 
 // The id of the extension
 const EXTENSION_ID = "formmetrics@bparr.com";
@@ -83,8 +66,8 @@ let FormMetrics = {
     if (!CLIENT_ID || !CLIENT_SALT)
       return;
 
-    VERSION = ExtensionManager.getItemForID(EXTENSION_ID).version;
-    ObserverService.addObserver(observer, "earlyformsubmit", false);
+    VERSION = Services.em.getItemForID(EXTENSION_ID).version;
+    Services.obs.addObserver(observer, "earlyformsubmit", false);
   }
 }
 
@@ -212,15 +195,15 @@ DELAYED_GETTERS.uri = {
 // Metrics about the user's history of the form's host
 DELAYED_GETTERS.history = {
   get: function(aData) {
-    let options = HistoryService.getNewQueryOptions();
+    let options = Services.history.getNewQueryOptions();
     options.queryType = options.QUERY_TYPE_HISTORY;
     options.resultType = options.RESULTS_AS_VISIT;
 
-    let query = HistoryService.getNewQuery();
+    let query = Services.history.getNewQuery();
     query.domainIsHost = true;
     query.domain = aData.formURI.host;
 
-    let result = HistoryService.executeQuery(query, options);
+    let result = Services.history.executeQuery(query, options);
     let root = result.root;
     root.containerOpen = true;
 
@@ -256,15 +239,15 @@ DELAYED_GETTERS.history = {
 // Metrics about the user's bookmarks of the form's host
 DELAYED_GETTERS.bookmarks = {
   get: function(aData) {
-    let options = HistoryService.getNewQueryOptions();
+    let options = Services.history.getNewQueryOptions();
     options.queryType = options.QUERY_TYPE_BOOKMARKS;
     options.resultType = options.RESULTS_AS_URI;
 
-    let query = HistoryService.getNewQuery();
+    let query = Services.history.getNewQuery();
     query.domainIsHost = true;
     query.domain = aData.formURI.host;
 
-    let result = HistoryService.executeQuery(query, options);
+    let result = Services.history.executeQuery(query, options);
     let root = result.root;
     root.containerOpen = true;
     return root.childCount;
@@ -291,7 +274,7 @@ DELAYED_GETTERS.password = {
   },
 
   _count: function(aHostname) {
-    return LoginManager.countLogins(aHostname, "", null);
+    return Services.login.countLogins(aHostname, "", null);
   },
 
   // Based on the _getFormattedHostname function in mozilla-central's
@@ -302,7 +285,7 @@ DELAYED_GETTERS.password = {
     // Only include port if it's not the scheme's default
     let port = aURI.port;
     if (port != -1) {
-      let handler = IOService.getProtocolHandler(aURI.scheme);
+      let handler = Services.io.getProtocolHandler(aURI.scheme);
       if (port != handler.defaultPort)
         hostname += ":" + port;
     }
@@ -314,7 +297,7 @@ DELAYED_GETTERS.password = {
 // Metrics about wheter the user is in Private Browsing mode
 DELAYED_GETTERS.privateBrowsing = {
   get: function(aData) {
-    return PrivateBrowsing.privateBrowsingEnabled;
+    return Services.pb.privateBrowsingEnabled;
   }
 }
 
@@ -326,13 +309,13 @@ DELAYED_GETTERS.privateBrowsing = {
 function getPreference(aPreference) {
   // Attempt to retrieve previously stored value
   try {
-    let value = PreferenceService.getCharPref(aPreference);
+    let value = Services.prefs.getCharPref(aPreference);
     if (value)
       return value;
   }
   catch (e) {
-    ConsoleService.logStringMessage("FormMetrics: Unable to get value of " +
-                                    aPreference + ". Creating a new value.");
+    Services.console.logStringMessage("FormMetrics: Unable to get value of " +
+                                      aPreference + ". Creating a new value.");
   }
 
   // Generate and store new value in preference
@@ -341,7 +324,7 @@ function getPreference(aPreference) {
     for (let i = 0; i < NUM_BYTES; i++)
       bytes.push(String.fromCharCode(Math.floor(Math.random() * 256)));
     let value = btoa(bytes.join(''));
-    PreferenceService.setCharPref(aPreference, value);
+    Services.prefs.setCharPref(aPreference, value);
     return value;
   }
   catch (e) {
