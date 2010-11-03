@@ -24,8 +24,11 @@ let PrivateBrowsing = Cc["@mozilla.org/privatebrowsing;1"].
 // Preference name for the unique id of the client
 const PREF_ID = "extensions.formmetrics.id";
 
-// Number of bytes used in client id
-const ID_BYTES = 32;
+// Preference name for the hash salt of the client
+const PREF_SALT = "extensions.formmetrics.salt";
+
+// Number of bytes used in client id and client salt
+const NUM_BYTES = 32;
 
 // The number of milliseconds in a single day
 const MILLISECONDS_IN_DAY = 86400000;
@@ -52,8 +55,11 @@ let GETTERS = {};
 // access to the window or form object
 let DELAYED_GETTERS = {};
 
-// The unique id of the client
+// The unique id of the client that is sent to server
 let CLIENT_ID = null;
+
+// The salt used when hashing values
+let CLIENT_SALT = null;
 
 let initialized = false;
 let FormMetrics = {
@@ -62,30 +68,9 @@ let FormMetrics = {
       return;
     initialized = true;
 
-    // Attempt to retrieve previously stored id
-    try {
-      CLIENT_ID = PreferenceService.getCharPref(PREF_ID);
-    }
-    catch (e) {
-      Cu.reportError(e);
-    }
-
-    if (!CLIENT_ID) {
-      try {
-        // Generate and store new user id in preference
-        let bytes = [];
-        for (let i = 0; i < ID_BYTES; i++)
-          bytes.push(String.fromCharCode(Math.floor(Math.random() * 256)));
-        let value = btoa(bytes.join(''));
-        PreferenceService.setCharPref(PREF_ID, value);
-        CLIENT_ID = value;
-      }
-      catch (e) {
-        Cu.reportError(e);
-      }
-    }
-
-    if (!CLIENT_ID)
+    CLIENT_ID = getPreference(PREF_ID);
+    CLIENT_SALT = getPreference(PREF_SALT);
+    if (!CLIENT_ID || !CLIENT_SALT)
       return;
 
     ObserverService.addObserver(observer, "earlyformsubmit", false);
@@ -321,6 +306,33 @@ DELAYED_GETTERS.privateBrowsing = {
 /*
  * Helper functions
  */
+// Get preference value, initializing to random bytes if not found
+function getPreference(aPreference) {
+  // Attempt to retrieve previously stored value
+  try {
+    let value = PreferenceService.getCharPref(aPreference);
+    if (value)
+      return value;
+  }
+  catch (e) {
+    Cu.reportError(e);
+  }
+
+  // Generate and store new value in preference
+  try {
+    let bytes = [];
+    for (let i = 0; i < NUM_BYTES; i++)
+      bytes.push(String.fromCharCode(Math.floor(Math.random() * 256)));
+    let value = btoa(bytes.join(''));
+    PreferenceService.setCharPref(aPreference, value);
+    return value;
+  }
+  catch (e) {
+    Cu.reportError(e);
+  }
+
+  return null;
+}
 // Copy specified object properties to a new object
 function copy(aObject, aProperties) {
   let copy = {};
@@ -338,7 +350,7 @@ function hash(aString, aAlgorithm) {
                   createInstance(Ci.nsIScriptableUnicodeConverter);
   converter.charset = "UTF-8";
   let result = {};
-  let data = converter.convertToByteArray(CLIENT_ID + aString, {});
+  let data = converter.convertToByteArray(CLIENT_SALT + aString, {});
 
   let ch = Cc["@mozilla.org/security/hash;1"].
            createInstance(Ci.nsICryptoHash);
