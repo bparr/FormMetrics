@@ -22,6 +22,8 @@ let PrivateBrowsing = Cc["@mozilla.org/privatebrowsing;1"].
                       getService(Ci.nsIPrivateBrowsingService);
 let ExtensionManager = Cc["@mozilla.org/extensions/manager;1"].
                        getService(Ci.nsIExtensionManager);
+let ConsoleService = Cc["@mozilla.org/consoleservice;1"].
+                     getService(Ci.nsIConsoleService);
 
 // The id of the extension
 const EXTENSION_ID = "formmetrics@bparr.com";
@@ -329,7 +331,8 @@ function getPreference(aPreference) {
       return value;
   }
   catch (e) {
-    Cu.reportError(e);
+    ConsoleService.logStringMessage("FormMetrics: Unable to get value of " +
+                                    aPreference + ". Creating a new value.");
   }
 
   // Generate and store new value in preference
