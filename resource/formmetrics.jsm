@@ -121,10 +121,7 @@ function submitMetrics(aMetrics, aData) {
       for (let name in DELAYED_GETTERS)
         aMetrics[name] = DELAYED_GETTERS[name].get(aData);
 
-      let formData = Cc["@mozilla.org/files/formdata;1"].
-                     createInstance(Ci.nsIDOMFormData);
-      formData.append("json", JSON.stringify(aMetrics));
-
+      // Generate request
       let req = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"].
                 createInstance(Ci.nsIXMLHttpRequest);
       req.open("POST", SUBMIT_URL, true);
@@ -134,7 +131,14 @@ function submitMetrics(aMetrics, aData) {
           Cu.reportError("FormMetrics submission failed (" + req.status + ")");
       };
 
-      req.send(formData);
+      let json = JSON.stringify(aMetrics);
+      let queryString = "json=" + encodeURIComponent(json);
+
+      req.setRequestHeader("Content-length", queryString.length);
+      req.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+      req.setRequestHeader("Connection", "close");
+
+      req.send(queryString);
     }
   }, SUBMIT_DELAY, timer.TYPE_ONE_SHOT);
 }
