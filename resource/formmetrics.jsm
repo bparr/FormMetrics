@@ -20,6 +20,11 @@ let LoginManager = Cc["@mozilla.org/login-manager;1"].
                    getService(Ci.nsILoginManager);
 let PrivateBrowsing = Cc["@mozilla.org/privatebrowsing;1"].
                       getService(Ci.nsIPrivateBrowsingService);
+let ExtensionManager = Cc["@mozilla.org/extensions/manager;1"].
+                       getService(Ci.nsIExtensionManager);
+
+// The id of the extension
+const EXTENSION_ID = "formmetrics@bparr.com";
 
 // Preference name for the unique id of the client
 const PREF_ID = "extensions.formmetrics.id";
@@ -48,6 +53,9 @@ const FORM_PROPERTIES = ["id", "name", "method", "target", "length",
 const ELEMENT_PROPERTIES = ["tagName", "type", "id", "name", "className",
                             "hidden", "disabled"];
 
+// The current vesion of the extension
+let VERSION = null;
+
 // Getters for different type of metrics
 let GETTERS = {};
 
@@ -73,6 +81,7 @@ let FormMetrics = {
     if (!CLIENT_ID || !CLIENT_SALT)
       return;
 
+    VERSION = ExtensionManager.getItemForID(EXTENSION_ID).version;
     ObserverService.addObserver(observer, "earlyformsubmit", false);
   }
 }
@@ -133,6 +142,7 @@ function submitMetrics(aMetrics, aData) {
 
       let json = JSON.stringify(aMetrics);
       let queryString = "json=" + encodeURIComponent(json);
+      queryString += "&version=" + encodeURIComponent(VERSION);
 
       req.setRequestHeader("Content-length", queryString.length);
       req.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
