@@ -26,11 +26,11 @@ const SUBMIT_URL = "https://bparr.homelinux.com/formmetrics.php";
 // The time to wait before submitting the form data
 const SUBMIT_DELAY = 2000;
 
-// Properties to gather from the form itself
-const FORM_PROPERTIES = ["id", "name", "method", "length", "autocomplete"];
+// Attributes to gather from the form itself
+const FORM_ATTRIBUTES = ["id", "name", "method", "target", "autocomplete"];
 
-// Properties to gather from form elements
-const ELEMENT_PROPERTIES = ["tagName", "type", "id", "name", "disabled"];
+// Attributes to gather from form elements
+const ELEMENT_ATTRIBUTES = ["type", "id", "name", "disabled"];
 
 // The current schema vesion used
 const SCHEMA_VERSION = 1;
@@ -154,15 +154,30 @@ GETTERS.time = {
 GETTERS.form = {
   get: function(aData) {
     let form = aData.form;
-    let metrics = copy(form, FORM_PROPERTIES);
+    let metrics = this._copy(form, FORM_ATTRIBUTES);
 
     let elements = [];
     for (let i = 0, len = form.elements.length; i < len; i++) {
-      elements.push(copy(form.elements.item(i), ELEMENT_PROPERTIES));
+      let element = form.elements.item(i);
+      let copy = this._copy(element, ELEMENT_ATTRIBUTES);
+      copy.tagName = element.tagName;
+      elements.push(copy);
     }
     metrics.elements = elements;
 
     return metrics;
+  },
+
+  // Copy specified attributes from an element to a new object
+  _copy: function (aElement, aAttributes) {
+    let copy = {};
+    aAttributes.forEach(function(aAttribute) {
+      let value = aElement.getAttribute(aAttribute);
+      if (value !== null)
+        copy[aAttribute] = aElement.getAttribute(aAttribute);
+    });
+
+    return copy;
   }
 }
 
@@ -326,15 +341,6 @@ function getPreference(aPreference) {
   }
 
   return null;
-}
-// Copy specified object properties to a new object
-function copy(aObject, aProperties) {
-  let copy = {};
-  aProperties.forEach(function(aProperty) {
-    copy[aProperty] = aObject[aProperty];
-  });
-
-  return copy;
 }
 
 // Hash a string using the user's id as a salt
