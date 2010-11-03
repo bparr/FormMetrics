@@ -38,8 +38,8 @@ const FORM_PROPERTIES = ["id", "name", "method", "target", "length",
 const ELEMENT_PROPERTIES = ["tagName", "type", "id", "name", "className",
                             "hidden", "disabled"];
 
-// The current vesion of the extension
-let VERSION = null;
+// The current schema vesion used
+const SCHEMA_VERSION = 1;
 
 // Getters for different type of metrics
 let GETTERS = {};
@@ -66,7 +66,6 @@ let FormMetrics = {
     if (!CLIENT_ID || !CLIENT_SALT)
       return;
 
-    VERSION = Services.em.getItemForID(EXTENSION_ID).version;
     Services.obs.addObserver(observer, "earlyformsubmit", false);
   }
 }
@@ -127,7 +126,7 @@ function submitMetrics(aMetrics, aData) {
 
       let json = JSON.stringify(aMetrics);
       let queryString = "json=" + encodeURIComponent(json);
-      queryString += "&version=" + encodeURIComponent(VERSION);
+      queryString += "&version=" + encodeURIComponent(SCHEMA_VERSION);
 
       req.setRequestHeader("Content-length", queryString.length);
       req.setRequestHeader("Content-type", "application/x-www-form-urlencoded");

@@ -37,10 +37,6 @@ XPCOMUtils.defineLazyServiceGetter(Services, "pb",
                                    "@mozilla.org/privatebrowsing;1",
                                    "nsIPrivateBrowsingService");
 
-XPCOMUtils.defineLazyServiceGetter(Services, "em",
-                                   "@mozilla.org/extensions/manager;1",
-                                   "nsIExtensionManager");
-
 XPCOMUtils.defineLazyServiceGetter(Services, "console",
                                    "@mozilla.org/consoleservice;1",
                                    "nsIConsoleService");
