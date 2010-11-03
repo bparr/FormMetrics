@@ -268,16 +268,24 @@ DELAYED_GETTERS.password = {
   get: function(aData) {
     let metrics = {};
 
-    let documentHostname = this._getFormattedHostname(aData.formURI);
-    let actionHostname = this._getFormattedHostname(aData.actionURI);
+    let hostnames = {
+      form:   this._getFormattedHostname(aData.formURI),
+      top:    this._getFormattedHostname(aData.topURI),
+      action: this._getFormattedHostname(aData.actionURI)
+    }
 
-    metrics.documentCount = this._count(documentHostname);
-
-    // Avoid unnecessary call to _count if hostnames are the same
-    if (documentHostname == actionHostname)
-      metrics.actionCount = metrics.documentCount;
-    else
-      metrics.actionCount = this._count(actionHostname);
+    let hostnameCounts = {};
+    for (let type in hostnames) {
+      let hostname = hostnames[type];
+      // Avoid unnecessary call to _count if hostname matches previous hostname
+      if (hostname in hostnameCounts)
+        metrics[type] = hostnameCounts[hostname];
+      else {
+        let count = this._count(hostname);
+        metrics[type] = count;
+        hostnameCounts[hostname] = count;
+      }
+    }
 
     return metrics;
   },
