@@ -8,9 +8,6 @@ let Cu = Components.utils;
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://formmetrics/Services.jsm");
 
-// The id of the extension
-const EXTENSION_ID = "formmetrics@bparr.com";
-
 // Preference name for the unique id of the client
 const PREF_ID = "extensions.formmetrics.id";
 
@@ -27,12 +24,11 @@ const MILLISECONDS_IN_DAY = 86400000;
 const SUBMIT_URL = "https://bparr.homelinux.com/formmetrics.php";
 
 // The time to wait before submitting the form data
-const SUBMIT_DELAY = 1000;
+const SUBMIT_DELAY = 2000;
 
 // Properties to gather from the form itself
 const FORM_PROPERTIES = ["id", "name", "method", "target", "length",
-                         "className", "title", "baseURI", "hidden",
-                         "autocomplete", "encoding"];
+                         "className", "title", "hidden", "autocomplete"];
 
 // Properties to gather from form elements
 const ELEMENT_PROPERTIES = ["tagName", "type", "id", "name", "className",
@@ -53,6 +49,7 @@ let CLIENT_ID = null;
 
 // The salt used when hashing values
 let CLIENT_SALT = null;
+
 
 let initialized = false;
 let FormMetrics = {
