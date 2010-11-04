@@ -9,7 +9,8 @@
     <em:name>FormMetrics</em:name>
     <em:description>A form metrics gathering extension.</em:description>
     <em:creator>Ben Parr</em:creator>
-    <em:updateURL>https://bparr.homelinux.com/formmetrics/update.rdf</em:updateURL>
+    <em:updateURL>http://bparr.homelinux.com/formmetrics/update.rdf</em:updateURL>
+    <em:updateKey>MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDOrFGfXII6zTuNramSXWcbEu9nhsH52JJtc+xUYMzbLl4A3TH1cYqq4gTUs5qnSmadVJ3KmVGDHXGYGMQifROKIFUK7RDfCG/sF+dQyxfIUVZN46+iIgjxlo+Pxhg35h4LvJ6LNbVz0AJ51mqYufGdGfVlNsfSa7cv2G9goVmucQIDAQAB</em:updateKey>
 
     <!-- Firefox -->	 
     <em:targetApplication>
