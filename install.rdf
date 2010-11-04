@@ -9,6 +9,7 @@
     <em:name>FormMetrics</em:name>
     <em:description>A form metrics gathering extension.</em:description>
     <em:creator>Ben Parr</em:creator>
+    <em:updateURL>https://bparr.homelinux.com/formmetrics/update.rdf</em:updateURL>
 
     <!-- Firefox -->	 
     <em:targetApplication>
